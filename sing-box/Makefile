@@ -6,8 +6,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=sing-box
-PKG_REV:=88fad9f
-PKG_VERSION:=1.8.0-rc.10
+PKG_REV:=21386ba
+PKG_VERSION:=1.8.0-rc.11
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_REV).tar.gz
