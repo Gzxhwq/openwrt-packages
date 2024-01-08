@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=Xray-core
-PKG_REV:=44bb830
-PKG_VERSION:=1.8.6-$(PKG_REV)
+PKG_REV:=3f0bc13
+PKG_VERSION:=1.8.7
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_REV).tar.gz
