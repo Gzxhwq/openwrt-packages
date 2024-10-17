@@ -92,10 +92,12 @@ auto_route() {
       return 0
     fi
     sed -ri 's/("auto_route": )[^,]*/\1true/' "$conffiles"
+    sed -ri 's/("auto_redirect": )[^,]*/\1true/' "$conffiles"
     sed -ri "s/(\"interface_name\": )[^,]*/\1\"$tun_iface\"/" "$conffiles"
-    iptables -I FORWARD -o "$tun_iface" -j ACCEPT
+    # iptables -I FORWARD -o "$tun_iface" -j ACCEPT
   else
     sed -ri 's/("auto_route": )[^,]*/\1false/' "$conffiles"
+    sed -ri 's/("auto_redirect": )[^,]*/\1false/' "$conffiles"
   fi
 }
 
