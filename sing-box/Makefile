@@ -38,6 +38,7 @@ define Package/$(PKG_NAME)
     +ca-bundle \
     +kmod-inet-diag \
     +kmod-netlink-diag \
+    +kmod-nft-nat \
     +kmod-tun
 endef
 
@@ -77,7 +78,7 @@ define Package/$(PKG_NAME)/config
 
     config SING_BOX_WITH_GVISOR
       bool "Build with gVisor support"
-      default n
+      default y
 
     config SING_BOX_WITH_QUIC
       bool "Build with QUIC support"
