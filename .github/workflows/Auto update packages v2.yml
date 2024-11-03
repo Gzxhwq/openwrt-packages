@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pakcages: [ adguardhome, dnscrypt-proxy2, dnsproxy, frp, mosdns, sing-box, syncthing, tailscale, xray-core, ddns-go ]
+        pakcages: [ adguardhome, dnscrypt-proxy2, dnsproxy, frp, mosdns, sing-box, syncthing, tailscale, xray-core, ddns-go, cloudflared ]
         include:
           - pakcages: adguardhome
             folder: adguardhome
@@ -141,6 +141,13 @@ jobs:
             release_download_url: https://codeload.github.com/jeessy2/ddns-go/tar.gz/v
             file_name:
 
+          - pakcages: cloudflared
+            folder: cloudflared
+            version_head: PKG_VERSION:=
+            hash_head: PKG_HASH:=
+            release_api_command: curl -sL https://api.github.com/repos/cloudflare/cloudflared/releases | jq -r 'map(select(.prerelease|not)) | first | .tag_name' | sed -e 's/.*v//'
+            release_download_url: https://codeload.github.com/cloudflare/cloudflared/tar.gz/v
+            file_name:
 
     steps:
       - name: Checkout
