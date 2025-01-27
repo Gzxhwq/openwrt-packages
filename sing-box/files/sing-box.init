@@ -26,6 +26,18 @@ PROG="/usr/bin/sing-box" # where is sing-box
 
 . /lib/functions/network.sh
 
+get_wan_ip() {
+  local NET_IF
+  local NET_ADDR
+	
+  network_flush_cache
+  network_find_wan NET_IF
+  network_get_ipaddr NET_ADDR "${NET_IF}"
+	
+  echo $NET_ADDR
+}
+
+
 inital_conf() {
   config_load "$CONF"
 
@@ -34,11 +46,15 @@ inital_conf() {
 
   config_get conffiles "config" "conffiles"
   config_get workdir "config" "workdir"
-  config_get dns_port "config" "dns_port"
   config_get tun_iface "config" "tun_iface"
   config_get_bool auto_route "config" "auto_route" "0"
   config_get_bool auto_redir "config" "auto_redir" "0"
+  config_get_bool auto_tproxy "config" "auto_tproxy" "0"
 
+  WAN_IP=$(get_wan_ip)
+
+#  config_get so_mark "config" "so_mark"
+#  fwmark="$(printf '0x%02x' $so_mark)"
   grep -qw sing-box /etc/passwd || echo "sing-box:x:0:23333:::" >> /etc/passwd
 
 }
@@ -50,7 +66,7 @@ service_triggers() {
 
 change_dns() {
   uci -q delete dhcp.@dnsmasq[0].server
-  uci add_list dhcp.@dnsmasq[0].server="127.0.0.1#$dns_port"
+  uci add_list dhcp.@dnsmasq[0].server="127.0.0.1#5553"
   uci set dhcp.@dnsmasq[0].noresolv="1"
   uci commit dhcp
   /etc/init.d/dnsmasq restart >"/dev/null" 2>&1
@@ -58,7 +74,7 @@ change_dns() {
 
 revert_dns() {
   uci set dhcp.@dnsmasq[0].noresolv="0"
-  uci -q del_list dhcp.@dnsmasq[0].server="127.0.0.1#$dns_port"
+  uci -q del_list dhcp.@dnsmasq[0].server="127.0.0.1#5553"
   if [ -d "/tmp/resolv.conf.d" ]; then
     uci set dhcp.@dnsmasq[0].resolvfile="/tmp/resolv.conf.d/resolv.conf.auto"
   else
@@ -70,8 +86,14 @@ revert_dns() {
 
 auto_route() {
   if [ "$auto_route" -eq 1 ] && [ -n "$tun_iface" ]; then
+    if [ "$auto_tproxy" -eq 1 ]; then
+      sed -ri 's/("auto_route": )[^,]*/\1false/' "$conffiles"
+      echo "auto_route is conflict with auto_tproxy"
+      return 0
+    fi
     sed -ri 's/("auto_route": )[^,]*/\1true/' "$conffiles"
     sed -ri "s/(\"interface_name\": )[^,]*/\1\"$tun_iface\"/" "$conffiles"
+    iptables -I FORWARD -o "$tun_iface" -j ACCEPT
   else
     sed -ri 's/("auto_route": )[^,]*/\1false/' "$conffiles"
   fi
@@ -79,11 +101,121 @@ auto_route() {
 
 auto_redir() {
   if [ "$auto_redir" -eq 1 ]; then
-    sed -ri 's/("auto_redirect": )[^,]*/\1true/' "$conffiles"
-  else
-    sed -ri 's/("auto_redirect": )[^,]*/\1false/' "$conffiles"
-  fi
 
+#    sed -ri "s/(\"default_mark\": )[^,]*/\1$so_mark/" $conffiles
+
+    if [ "$auto_tproxy" -eq 1 ]; then
+      echo "auto_redir is conflict with auto_tproxy"
+      return 0
+    fi
+    iptables -t nat -N SING-BOX
+    iptables -t nat -A SING-BOX -d 0.0.0.0/8 -j RETURN
+    iptables -t nat -A SING-BOX -d 10.0.0.0/8 -j RETURN
+    iptables -t nat -A SING-BOX -d 127.0.0.0/8 -j RETURN
+    iptables -t nat -A SING-BOX -d 169.254.0.0/16 -j RETURN
+    iptables -t nat -A SING-BOX -d 172.16.0.0/12 -j RETURN
+    iptables -t nat -A SING-BOX -d 192.168.0.0/16 -j RETURN
+    iptables -t nat -A SING-BOX -d 224.0.0.0/4 -j RETURN
+    iptables -t nat -A SING-BOX -d 240.0.0.0/4 -j RETURN
+#    iptables -t nat -A SING-BOX -p tcp -j RETURN -m mark --mark $fwmark
+    iptables -t nat -A SING-BOX -p tcp -j REDIRECT --to-ports 12345
+    iptables -t nat -A PREROUTING -p tcp -j SING-BOX
+    iptables -t nat -A OUTPUT -p tcp -m owner ! --gid-owner 23333 -j SING-BOX
+  fi
+}
+
+auto_tproxy() {
+  if [ "$auto_tproxy" -eq 1 ]; then
+
+#    sed -ri "s/(\"default_mark\": )[^,]*/\1$so_mark/" $conffiles
+    if [ "$auto_route" -eq 1 ] || [ "$auto_redir" -eq 1 ]; then
+      echo "auto_tproxy is conflict with auto_route & auto_redir"
+      exit 1
+    fi
+
+    ip route add local 0.0.0.0/0 dev lo table 100
+    ip rule add fwmark 1 table 100
+
+    iptables -t mangle -N SING-BOX-CTMARK
+    iptables -t mangle -A SING-BOX-CTMARK -j CONNMARK --restore-mark
+    iptables -t mangle -A SING-BOX-CTMARK -m mark --mark 1 -j RETURN
+    iptables -t mangle -A SING-BOX-CTMARK -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j MARK --set-xmark 1
+    iptables -t mangle -A SING-BOX-CTMARK -p udp -m conntrack --ctstate NEW -j MARK --set-xmark 1
+    iptables -t mangle -A SING-BOX-CTMARK -j CONNMARK --save-mark
+
+    iptables -t mangle -N SING-BOX
+    iptables -t mangle -A SING-BOX -d 0.0.0.0/8 -j RETURN
+    iptables -t mangle -A SING-BOX -d 10.0.0.0/8 -j RETURN
+    iptables -t mangle -A SING-BOX -d 127.0.0.0/8 -j RETURN
+    iptables -t mangle -A SING-BOX -d 169.254.0.0/16 -j RETURN
+    iptables -t mangle -A SING-BOX -d 172.16.0.0/12 -j RETURN
+    iptables -t mangle -A SING-BOX -d 192.168.0.0/16 -j RETURN
+    iptables -t mangle -A SING-BOX -d 224.0.0.0/4 -j RETURN
+    iptables -t mangle -A SING-BOX -d 240.0.0.0/4 -j RETURN
+    [ ! -z "${WAN_IP}" ] && iptables -t mangle -A SING-BOX -d "${WAN_IP}" -j RETURN
+    iptables -t mangle -A SING-BOX -i lo -p tcp -j TPROXY -m mark --mark 1 --on-ip 127.0.0.1 --on-port 54321 --tproxy-mark 1
+    iptables -t mangle -A SING-BOX -i lo -p tcp -j RETURN
+    iptables -t mangle -A SING-BOX -i lo -p udp -j TPROXY -m mark --mark 1 --on-ip 127.0.0.1 --on-port 54321 --tproxy-mark 1
+    iptables -t mangle -A SING-BOX -i lo -p udp -j RETURN
+    iptables -t mangle -A SING-BOX -p tcp -j SING-BOX-CTMARK
+    iptables -t mangle -A SING-BOX -p tcp -j TPROXY -m mark --mark 1 --on-ip 127.0.0.1 --on-port 54321 --tproxy-mark 1
+    iptables -t mangle -A SING-BOX -p tcp -j RETURN
+    iptables -t mangle -A SING-BOX -p udp -j SING-BOX-CTMARK
+    iptables -t mangle -A SING-BOX -p udp -j TPROXY -m mark --mark 1 --on-ip 127.0.0.1 --on-port 54321 --tproxy-mark 1
+    iptables -t mangle -A SING-BOX -p udp -j RETURN
+    iptables -t mangle -I PREROUTING -j SING-BOX
+
+    iptables -t mangle -N SING-BOX-DIVERT
+    iptables -t mangle -A SING-BOX-DIVERT -j MARK --set-mark 1
+    iptables -t mangle -A SING-BOX-DIVERT -j ACCEPT
+    iptables -t mangle -I PREROUTING -p tcp -m socket -j SING-BOX-DIVERT
+
+    iptables -t mangle -N SING-BOX-OUTPUT
+    iptables -t mangle -A SING-BOX-OUTPUT -d 0.0.0.0/8 -j RETURN
+    iptables -t mangle -A SING-BOX-OUTPUT -d 10.0.0.0/8 -j RETURN
+    iptables -t mangle -A SING-BOX-OUTPUT -d 127.0.0.0/8 -j RETURN
+    iptables -t mangle -A SING-BOX-OUTPUT -d 169.254.0.0/16 -j RETURN
+    iptables -t mangle -A SING-BOX-OUTPUT -d 172.16.0.0/12 -j RETURN
+    iptables -t mangle -A SING-BOX-OUTPUT -d 192.168.0.0/16 -j RETURN
+    iptables -t mangle -A SING-BOX-OUTPUT -d 224.0.0.0/4 -j RETURN
+    iptables -t mangle -A SING-BOX-OUTPUT -d 240.0.0.0/4 -j RETURN
+    iptables -t mangle -A SING-BOX-OUTPUT -m owner --gid-owner 23333 -j RETURN
+    iptables -t mangle -A SING-BOX-OUTPUT -p tcp -j SING-BOX-CTMARK
+    iptables -t mangle -A SING-BOX-OUTPUT -p udp -j SING-BOX-CTMARK
+    iptables -t mangle -I OUTPUT -j SING-BOX-OUTPUT
+  fi
+}
+
+cleanup() {
+#  if [ "$auto_route" -eq 1 ]; then
+    iptables -D FORWARD -o "$tun_iface" -j ACCEPT 2>/dev/null
+#  fi
+
+#  if [ "$auto_redir" -eq 1 ] && [ -n "$so_mark" ]; then
+    iptables -t nat -D PREROUTING -p tcp -j SING-BOX 2>/dev/null
+    iptables -t nat -D OUTPUT -p tcp -m owner ! --gid-owner 23333 -j SING-BOX 2>/dev/null
+
+    iptables -t nat -F SING-BOX 2>/dev/null
+    iptables -t nat -X SING-BOX 2>/dev/null
+#  fi
+    ip route del local 0.0.0.0/0 dev lo table 100 2>/dev/null
+    ip rule del fwmark 1 table 100 2>/dev/null
+
+    iptables -t mangle -D PREROUTING -j SING-BOX 2>/dev/null
+    iptables -t mangle -D PREROUTING -p tcp -m socket -j SING-BOX-DIVERT 2>/dev/null
+    iptables -t mangle -D OUTPUT -j SING-BOX-OUTPUT 2>/dev/null
+
+    iptables -t mangle -F SING-BOX 2>/dev/null
+    iptables -t mangle -X SING-BOX 2>/dev/null
+
+    iptables -t mangle -F SING-BOX-OUTPUT 2>/dev/null
+    iptables -t mangle -X SING-BOX-OUTPUT 2>/dev/null
+
+    iptables -t mangle -F SING-BOX-DIVERT 2>/dev/null
+    iptables -t mangle -X SING-BOX-DIVERT 2>/dev/null
+
+    iptables -t mangle -F SING-BOX-CTMARK 2>/dev/null
+    iptables -t mangle -X SING-BOX-CTMARK 2>/dev/null
 }
 
 start_service() {
@@ -104,6 +236,7 @@ start_service() {
 
   auto_route
   auto_redir
+  auto_tproxy
 
   change_dns
 
@@ -127,6 +260,7 @@ start_service() {
 stop_service() {
   inital_conf
   service_stop $PROG
+  cleanup
 
   revert_dns
   
