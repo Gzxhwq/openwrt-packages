@@ -23,7 +23,7 @@ start_service() {
 	config_get_bool insecure "config" "insecure" "0"
 
 	[ -d "${YAML%/*}" ] || mkdir -p "${YAML%/*}"
-	touch "$YAML"
+	[ -f "$YAML" ] || touch "$YAML"
 	chown ddns-go "$YAML"
 
 	procd_open_instance "$CONF"
