@@ -55,7 +55,7 @@ inital_conf() {
 
 #  config_get so_mark "config" "so_mark"
 #  fwmark="$(printf '0x%02x' $so_mark)"
-  grep -qw sing-box /etc/passwd || echo "sing-box:x:0:23333:::" >> /etc/passwd
+  # grep -qw sing-box /etc/passwd || echo "sing-box:x:0:23333:::" >> /etc/passwd
 
 }
 
@@ -247,7 +247,7 @@ start_service() {
 
   procd_set_param file "$conffiles"
 
-  procd_set_param user "sing-box"
+  # procd_set_param user "sing-box"
   procd_set_param limits core="unlimited"
   procd_set_param limits nofile="1000000 1000000"
   procd_set_param stdout 1
