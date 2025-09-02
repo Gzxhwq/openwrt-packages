@@ -1,12 +1,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=syncthing
-PKG_VERSION:=2.0.3
+PKG_VERSION:=2.0.5
 PKG_RELEASE:=1
 
 PKG_SOURCE:=syncthing-source-v$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://github.com/syncthing/syncthing/releases/download/v$(PKG_VERSION)
-PKG_HASH:=80ef0589c3949b2b48ae703106e4ce95474a111625923fb7d568f73c2537fe5d
+PKG_HASH:=c7fed474e5a047bbf86d73b8bbf1fd7ffefeccc7342a7b4686a3dfa2a30693e2
 
 PKG_BUILD_DIR=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/$(PKG_NAME)
 
