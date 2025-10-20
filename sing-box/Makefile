@@ -129,7 +129,7 @@ GO_PKG_TAGS:=$(subst $(space),$(comma),$(strip \
 
 define Package/$(PKG_NAME)/conffiles
 /etc/config/sing-box
-/etc/sing-box/config.json
+/etc/sing-box/
 endef
 
 define Package/$(PKG_NAME)/install
