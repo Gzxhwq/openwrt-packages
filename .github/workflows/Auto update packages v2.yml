@@ -161,17 +161,38 @@ jobs:
             Old_PKG_VERSION=$(sed -n '/^${{ matrix.version_head }}/p' Makefile | awk -F '=' '{print $2}')
             New_PKG_VERSION=$(${{ matrix.release_api_command }})
             echo "${{ matrix.pakcages }}目前版本: $Old_PKG_VERSION"
-            echo "${{ matrix.pakcages }}最新版本: $New_PKG_VERSION"
-            if [ "$Old_PKG_VERSION" = "$New_PKG_VERSION" ]; then 
-              echo "status=failure" >> $GITHUB_OUTPUT; 
-              echo "${{ matrix.pakcages }}版本为最新版本$New_PKG_VERSION,无需更新"; 
-            else 
-              echo "New_PKG_VERSION=$New_PKG_VERSION" >> $GITHUB_OUTPUT;  
-              echo "status=success" >> $GITHUB_OUTPUT;
+            echo "${{ matrix.pakcages }}latest release版本: $New_PKG_VERSION"
+
+            result=0
+
+            ver1="$Old_PKG_VERSION"
+            ver2="$New_PKG_VERSION"
+
+            # 使用 sort -V 进行版本号比较
+            if [[ "$(printf "%s\n%s" "$ver1" "$ver2" | sort -V | head -n 1)" == "$ver1" && "$ver1" != "$ver2" ]]; then
+              result=1
+            elif [[ "$ver1" == "$ver2" ]]; then
+              result=0
+            else
+              result=2
+            fi
+
+            echo "版本对比结果：$result"
+
+            if [[ $result -eq 0 ]]; then
+              echo "status=failure" >> $GITHUB_OUTPUT
+              echo "${{ matrix.pakcages }}版本为最新版本$New_PKG_VERSION, 无需更新"
+            elif [[ $result -eq 1 ]]; then
+              echo "New_PKG_VERSION=$New_PKG_VERSION" >> $GITHUB_OUTPUT
+              echo "status=success" >> $GITHUB_OUTPUT
+            else
+              echo "status=failure" >> $GITHUB_OUTPUT
+              echo "检测到本地版本高于最新latest release版本，停止更新"
             fi
           else
-            echo "status=failure" >> $GITHUB_OUTPUT;
+            echo "status=failure" >> $GITHUB_OUTPUT
           fi
+
 
 
       - name: Update ${{ matrix.pakcages }}
@@ -216,3 +237,4 @@ jobs:
           labels: |
             automated-pr
           draft: false
+
