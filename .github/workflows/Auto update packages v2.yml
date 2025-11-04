@@ -161,7 +161,7 @@ jobs:
             Old_PKG_VERSION=$(sed -n '/^${{ matrix.version_head }}/p' Makefile | awk -F '=' '{print $2}')
             New_PKG_VERSION=$(${{ matrix.release_api_command }})
             echo "${{ matrix.pakcages }}目前版本: $Old_PKG_VERSION"
-            echo "${{ matrix.pakcages }}latest release版本: $New_PKG_VERSION"
+            echo "${{ matrix.pakcages }}最新版本: $New_PKG_VERSION"
 
             result=0
 
