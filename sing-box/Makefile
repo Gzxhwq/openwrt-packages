@@ -39,6 +39,7 @@ define Package/$(PKG_NAME)
     +kmod-inet-diag \
     +kmod-netlink-diag \
     +kmod-nft-nat \
+    +kmod-nft-queue \
     +kmod-tun
 endef
 
