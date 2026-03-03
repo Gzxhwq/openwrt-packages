@@ -23,7 +23,10 @@ PKG_BUILD_FLAGS:=no-mips16
 
 GO_PKG:=github.com/sagernet/sing-box
 GO_PKG_BUILD_PKG:=$(GO_PKG)/cmd/sing-box
-GO_PKG_LDFLAGS_X:=$(GO_PKG)/constant.Version=v$(PKG_VERSION)
+GO_PKG_LDFLAGS:=-checklinkname=0
+GO_PKG_LDFLAGS_X:= \
+	$(GO_PKG)/constant.Version=v$(PKG_VERSION) \
+	internal/godebug.defaultGODEBUG=multipathtcp=0
 
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
@@ -54,8 +57,27 @@ define Package/$(PKG_NAME)/config
   menu "Customizing build tags"
     depends on PACKAGE_sing-box
 
+    config SING_BOX_BADLINKNAME
+      bool "Enable go:linkname access to internal standard library functions"
+      default y
+      help
+        Required because the Go standard library does not expose many low-level APIs needed by this project, 
+        and reimplementing them externally is impractical.
+        Used for kTLS (kernel TLS offload) and raw TLS record manipulation.
+
+    config SING_BOX_TFOGO_CHECKLINKNAME0
+      bool "Companion to badlinkname"
+      default y
+      help
+        Go 1.23+ enforces go:linkname restrictions via the linker;
+        this tag signals the build uses -checklinkname=0 to bypass that enforcement.
+
     config SING_BOX_WITH_ACME
       bool "Build with ACME TLS certificate issuer support"
+      default n
+
+    config SING_BOX_WITH_CCM
+      bool "Build with Claude Code Multiplexer service support"
       default n
 
     config SING_BOX_WITH_CLASH_API
@@ -76,6 +98,10 @@ define Package/$(PKG_NAME)/config
     config SING_BOX_WITH_GVISOR
       bool "Build with gVisor support"
       default y
+
+    config SING_BOX_WITH_OCM
+      bool "Build with OpenAI Codex Multiplexer service support"
+      default n
 
     config SING_BOX_WITH_QUIC
       bool "Build with QUIC support"
@@ -104,11 +130,15 @@ define Package/$(PKG_NAME)/config
 endef
 
 PKG_CONFIG_DEPENDS:= \
+	CONFIG_SING_BOX_BADLINKNAME \
+	CONFIG_SING_BOX_TFOGO_CHECKLINKNAME0 \
 	CONFIG_SING_BOX_WITH_ACME \
+	CONFIG_SING_BOX_WITH_CCM \
 	CONFIG_SING_BOX_WITH_CLASH_API \
 	CONFIG_SING_BOX_WITH_DHCP \
 	CONFIG_SING_BOX_WITH_GRPC \
 	CONFIG_SING_BOX_WITH_GVISOR \
+	CONFIG_SING_BOX_WITH_OCM \
 	CONFIG_SING_BOX_WITH_QUIC \
 	CONFIG_SING_BOX_WITH_TAILSCALE \
 	CONFIG_SING_BOX_WITH_UTLS \
@@ -116,11 +146,15 @@ PKG_CONFIG_DEPENDS:= \
 	CONFIG_SING_BOX_WITH_WIREGUARD
 
 GO_PKG_TAGS:=$(subst $(space),$(comma),$(strip \
+	$(if $(CONFIG_SING_BOX_BADLINKNAME),badlinkname) \
+	$(if $(CONFIG_SING_BOX_TFOGO_CHECKLINKNAME0),tfogo_checklinkname0) \
 	$(if $(CONFIG_SING_BOX_WITH_ACME),with_acme) \
+	$(if $(CONFIG_SING_BOX_WITH_CCM),with_ccm) \
 	$(if $(CONFIG_SING_BOX_WITH_CLASH_API),with_clash_api) \
 	$(if $(CONFIG_SING_BOX_WITH_DHCP),with_dhcp) \
 	$(if $(CONFIG_SING_BOX_WITH_GRPC),with_grpc) \
 	$(if $(CONFIG_SING_BOX_WITH_GVISOR),with_gvisor) \
+	$(if $(CONFIG_SING_BOX_WITH_OCM),with_ocm) \
 	$(if $(CONFIG_SING_BOX_WITH_QUIC),with_quic) \
 	$(if $(CONFIG_SING_BOX_WITH_TAILSCALE),with_tailscale) \
 	$(if $(CONFIG_SING_BOX_WITH_UTLS),with_utls) \
