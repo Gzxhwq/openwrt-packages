@@ -6,12 +6,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=sing-box
-PKG_VERSION:=1.13.2
+PKG_VERSION:=1.13.3
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/SagerNet/sing-box/tar.gz/v$(PKG_VERSION)?
-PKG_HASH:=04b72fcd355c36a85eb028f47986894e9cf4dadbea3fee79f6891481cabeb692
+PKG_HASH:=bf8933cd43e2797afcffb47528282e1c1aee078bf5eeda888d80a151fef726e1
 
 PKG_LICENSE:=GPL-3.0-or-later
 PKG_LICENSE_FILES:=LICENSE
@@ -25,7 +25,7 @@ GO_PKG:=github.com/sagernet/sing-box
 GO_PKG_BUILD_PKG:=$(GO_PKG)/cmd/sing-box
 GO_PKG_LDFLAGS:=-checklinkname=0
 GO_PKG_LDFLAGS_X:= \
-	$(GO_PKG)/constant.Version=v$(PKG_VERSION) \
+	$(GO_PKG)/constant.Version=$(PKG_VERSION) \
 	internal/godebug.defaultGODEBUG=multipathtcp=0
 
 include $(INCLUDE_DIR)/package.mk
