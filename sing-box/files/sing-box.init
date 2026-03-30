@@ -93,7 +93,7 @@ auto_route() {
     fi
     sed -ri 's/("auto_route": )[^,]*/\1true/' "$conffiles"
     sed -ri "s/(\"interface_name\": )[^,]*/\1\"$tun_iface\"/" "$conffiles"
-    iptables -I FORWARD -o "$tun_iface" -j ACCEPT
+    # iptables -I FORWARD -o "$tun_iface" -j ACCEPT
   else
     sed -ri 's/("auto_route": )[^,]*/\1false/' "$conffiles"
   fi
@@ -188,7 +188,7 @@ auto_tproxy() {
 
 cleanup() {
 #  if [ "$auto_route" -eq 1 ]; then
-    iptables -D FORWARD -o "$tun_iface" -j ACCEPT 2>/dev/null
+    # iptables -D FORWARD -o "$tun_iface" -j ACCEPT 2>/dev/null
 #  fi
 
 #  if [ "$auto_redir" -eq 1 ] && [ -n "$so_mark" ]; then
