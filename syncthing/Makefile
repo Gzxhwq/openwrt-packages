@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=syncthing
-PKG_VERSION:=2.1.3
+PKG_VERSION:=null
 PKG_RELEASE:=3
 
 PKG_SOURCE:=syncthing-source-v$(PKG_VERSION).tar.gz
