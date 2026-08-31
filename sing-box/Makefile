@@ -6,12 +6,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=sing-box
-PKG_VERSION:=1.14.0-rc.5
+PKG_VERSION:=1.14.0
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/SagerNet/sing-box/tar.gz/v$(PKG_VERSION)?
-PKG_HASH:=18dc5e658fa3121bbe1b7d719a789fa5c95464e9970a35b6db80376f2638b083
+PKG_HASH:=87baf6852e37941cbe40bdd94bec81c957c88a56751cecd6bbf0e6108bc69398
 
 PKG_LICENSE:=GPL-3.0-or-later
 PKG_LICENSE_FILES:=LICENSE
@@ -84,6 +84,10 @@ define Package/$(PKG_NAME)/config
       bool "Build with Clash API support (EXPERIMENTAL!!!)"
       default y
 
+    config SING_BOX_WITH_CLOUDFLARED
+      bool "Build with Cloudflare Tunnel inbound support"
+      default n
+
     config SING_BOX_WITH_DHCP
       bool "Build with DHCP support"
       default y
@@ -135,6 +139,7 @@ PKG_CONFIG_DEPENDS:= \
 	CONFIG_SING_BOX_WITH_ACME \
 	CONFIG_SING_BOX_WITH_CCM \
 	CONFIG_SING_BOX_WITH_CLASH_API \
+	CONFIG_SING_BOX_WITH_CLOUDFLARED \
 	CONFIG_SING_BOX_WITH_DHCP \
 	CONFIG_SING_BOX_WITH_GRPC \
 	CONFIG_SING_BOX_WITH_GVISOR \
@@ -151,6 +156,7 @@ GO_PKG_TAGS:=$(subst $(space),$(comma),$(strip \
 	$(if $(CONFIG_SING_BOX_WITH_ACME),with_acme) \
 	$(if $(CONFIG_SING_BOX_WITH_CCM),with_ccm) \
 	$(if $(CONFIG_SING_BOX_WITH_CLASH_API),with_clash_api) \
+	$(if $(CONFIG_SING_BOX_WITH_CLOUDFLARED),with_cloudflared) \
 	$(if $(CONFIG_SING_BOX_WITH_DHCP),with_dhcp) \
 	$(if $(CONFIG_SING_BOX_WITH_GRPC),with_grpc) \
 	$(if $(CONFIG_SING_BOX_WITH_GVISOR),with_gvisor) \
